@@ -22,8 +22,8 @@ export const UI = ({
     messages: any[];
     onSpeechEnd?: () => void;
 }) => {
-    const [conversationMode, setConversationMode] = useState(true);
-    const conversationModeRef = useRef(true);
+    const [conversationMode, setConversationMode] = useState(false);
+    const conversationModeRef = useRef(false);
     const [showWelcomeHint, setShowWelcomeHint] = useState(true);
     
     const { 
