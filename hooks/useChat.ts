@@ -1,11 +1,16 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 
 interface Message {
     role: "system" | "user" | "assistant";
     content: string;
 }
 
-export const useChat = () => {
+interface UseChatOptions {
+    onSpeechEnd?: () => void; // Callback when avatar finishes speaking
+}
+
+export const useChat = (options: UseChatOptions = {}) => {
+    const { onSpeechEnd } = options;
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(false);
@@ -15,12 +20,17 @@ export const useChat = () => {
     const isPlayingRef = useRef(false);
 
     // Play audio from queue
-    const playNextInQueue = () => {
+    const playNextInQueue = useCallback(() => {
         console.log("playNextInQueue called. Queue length:", audioQueueRef.current.length, "isPlaying:", isPlayingRef.current);
         
         if (isPlayingRef.current || audioQueueRef.current.length === 0) {
             if (audioQueueRef.current.length === 0) {
                 setIsSpeaking(false);
+                // Notify that speech has ended
+                if (onSpeechEnd) {
+                    console.log("🔊 Speech ended, triggering callback");
+                    onSpeechEnd();
+                }
             }
             return;
         }
@@ -54,10 +64,10 @@ export const useChat = () => {
         } else {
             console.error("❌ audioRef.current is null!");
         }
-    };
+    }, [onSpeechEnd]);
 
     // Generate TTS for a text chunk
-    const generateSpeech = async (text: string) => {
+    const generateSpeech = useCallback(async (text: string) => {
         try {
             console.log("Generating speech for:", text);
             const ttsRes = await fetch("/api/tts", {
@@ -78,10 +88,10 @@ export const useChat = () => {
         } catch (error) {
             console.error("Error generating speech:", error);
         }
-    };
+    }, [playNextInQueue]);
 
     // Transcribe audio to text
-    const transcribeAudio = async (audioBlob: Blob): Promise<string | null> => {
+    const transcribeAudio = useCallback(async (audioBlob: Blob): Promise<string | null> => {
         try {
             console.log("Transcribing audio blob, size:", audioBlob.size);
             const formData = new FormData();
@@ -103,9 +113,9 @@ export const useChat = () => {
             console.error("Error transcribing audio:", error);
             return null;
         }
-    };
+    }, []);
 
-    const sendMessage = async (audioBlob?: Blob) => {
+    const sendMessage = useCallback(async (audioBlob?: Blob) => {
         if (loading) return;
 
         let messageContent = input.trim();
@@ -210,7 +220,7 @@ export const useChat = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [messages, input, transcribeAudio, generateSpeech]);
 
     return {
         messages,
